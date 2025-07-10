@@ -102,18 +102,6 @@ func TestMain(m *testing.M) {
 			// Wait for finops-database-handler to install
 			time.Sleep(25 * time.Second)
 
-			log.Info().Msg("starting portforward")
-			// open port
-			go func() {
-				log.Info().Msg("from goroutine: running port forward")
-				_ = e2eutils.RunCommand(
-					fmt.Sprintf("kubectl -n %s port-forward svc/%s 8088",
-						testNamespace, "finops-database-handler"),
-				)
-			}()
-
-			time.Sleep(10 * time.Second)
-
 			return ctx, nil
 		},
 	)
@@ -212,9 +200,19 @@ func TestUploader(t *testing.T) {
 			return ctx
 		}).
 		Assess("Remote value", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+			log.Info().Msg("starting portforward")
+			// open port
+			go func() {
+				log.Info().Msg("from goroutine: running port forward")
+				_ = e2eutils.RunCommand(
+					fmt.Sprintf("kubectl -n %s port-forward svc/%s 8088",
+						testNamespace, "finops-database-handler"),
+				)
+			}()
+			time.Sleep(10 * time.Second)
+
 			r := ctx.Value(contextKey("client")).(*resources.Resources)
 
-			// Get the secret first
 			secret := &corev1.Secret{}
 			err := r.Get(ctx, "cratedb-system-credentials", testNamespace, secret)
 			if err != nil {
@@ -258,6 +256,117 @@ func TestUploader(t *testing.T) {
 				t.Fatal(fmt.Errorf("Unexpected output from finops-database-handler"))
 			}
 
+			return ctx
+		}).
+		Assess("Update", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+			r := ctx.Value(contextKey("client")).(*resources.Resources)
+
+			crGet := &v1.Notebook{}
+			err := r.Get(ctx, testName+"1", testNamespace, crGet)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			crGet.Spec.Inline = "update"
+
+			err = r.Update(ctx, crGet)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			time.Sleep(15 * time.Second)
+
+			secret := &corev1.Secret{}
+			err = r.Get(ctx, "cratedb-system-credentials", testNamespace, secret)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			p := e2eutils.RunCommand(fmt.Sprintf("curl -u 'system:%s' -s --max-time 30 http://%s:%s/compute/%s1/info", string(secret.Data["password"]), "localhost", "8088", testName))
+			if p.Err() != nil {
+				t.Fatal(fmt.Errorf("error with curl: %s %v", p.Out(), p.Err()))
+			}
+			resultData1, _ := io.ReadAll(p.Out())
+			log.Info().Msgf("resultData1: %s", string(resultData1))
+			var notebookValues1 helpers.NotebookInfo
+			err = json.Unmarshal(resultData1, &notebookValues1)
+			if err != nil {
+				t.Fatal(fmt.Errorf("could not unmarshal notebook code from finops-database-handler: %v", err))
+			}
+
+			if strings.ReplaceAll(notebookValues1.Code, "\n", "") != "update" {
+				log.Warn().Msgf("expected: %s", "update")
+				log.Warn().Msgf("notebook1: %s", notebookValues1.Code)
+				t.Fatal(fmt.Errorf("Unexpected output from finops-database-handler"))
+			}
+
+			return ctx
+		}).
+		Assess("Delete", func(ctx context.Context, t *testing.T, cfg *envconf.Config) context.Context {
+			r := ctx.Value(contextKey("client")).(*resources.Resources)
+
+			// Delete the first resource
+			crGet := &v1.Notebook{}
+			err := r.Get(ctx, testName+"1", testNamespace, crGet)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			err = r.Delete(ctx, crGet)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			// Delete the second resource
+			err = r.Get(ctx, testName+"2", testNamespace, crGet)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			err = r.Delete(ctx, crGet)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			// Get the database password
+			secret := &corev1.Secret{}
+			err = r.Get(ctx, "cratedb-system-credentials", testNamespace, secret)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			time.Sleep(15 * time.Second)
+
+			p := e2eutils.RunCommand(fmt.Sprintf("curl -u 'system:%s' -s --max-time 30 http://%s:%s/compute/%s1/info", string(secret.Data["password"]), "localhost", "8088", testName))
+			if p.Err() != nil {
+				t.Fatal(fmt.Errorf("error with curl: %s %v", p.Out(), p.Err()))
+			}
+			resultData1, _ := io.ReadAll(p.Out())
+			log.Info().Msgf("resultData1: %s", string(resultData1))
+			var notebookValues1 helpers.NotebookInfo
+			err = json.Unmarshal(resultData1, &notebookValues1)
+			if err != nil {
+				t.Fatal(fmt.Errorf("could not unmarshal notebook code from finops-database-handler: %v", err))
+			}
+
+			p = e2eutils.RunCommand(fmt.Sprintf("curl -u 'system:%s' -s --max-time 30 http://%s:%s/compute/%s2/info", string(secret.Data["password"]), "localhost", "8088", testName))
+			if p.Err() != nil {
+				t.Fatal(fmt.Errorf("error with curl: %s %v", p.Out(), p.Err()))
+			}
+			resultData2, _ := io.ReadAll(p.Out())
+			log.Info().Msgf("resultData2: %s", string(resultData2))
+			var notebookValues2 helpers.NotebookInfo
+			err = json.Unmarshal(resultData2, &notebookValues2)
+			if err != nil {
+				t.Fatal(fmt.Errorf("could not unmarshal notebook code from finops-database-handler: %v", err))
+			}
+
+			if strings.ReplaceAll(notebookValues1.Code, "\n", "") != "" || strings.ReplaceAll(notebookValues2.Code, "\n", "") != "" {
+				log.Warn().Msgf("expected: %s", "")
+				log.Warn().Msgf("notebook1: %s", notebookValues1.Code)
+				log.Warn().Msgf("notebook2: %s", notebookValues2.Code)
+				t.Fatal(fmt.Errorf("Unexpected output from finops-database-handler"))
+			}
 			return ctx
 		}).
 		Feature()
