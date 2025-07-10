@@ -1,0 +1,21 @@
+apiVersion: finops.krateo.io/v1
+kind: Notebook
+metadata:
+  name: query2
+  namespace: uploader-test
+spec: 
+  type: api
+  api: 
+    path: "/krateoplatformops/finops-database-handler/refs/heads/main/notebook_samples/query.py"
+    verb: GET
+    endpointRef:
+      name: raw-github
+      namespace: uploader-test
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: raw-github
+  namespace: uploader-test
+stringData:
+  server-url: https://raw.githubusercontent.com

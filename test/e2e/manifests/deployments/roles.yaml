@@ -1,0 +1,138 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: finops-database-handler-uploader-leader-election
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: finops-database-handler-uploader-manager
+rules:
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - update
+- apiGroups:
+  - ""
+  resources:
+  - services
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
+  - finops.krateo.io
+  resources:
+  - databaseconfigs
+  verbs:
+  - create
+  - get
+  - update
+- apiGroups:
+  - finops.krateo.io
+  resources:
+  - notebooks
+  verbs:
+  - create
+  - delete
+  - get
+  - update
+- apiGroups:
+  - finops.krateo.io
+  resources:
+  - notebooks/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - finops.krateo.io
+  resources:
+  - notebooks/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - finops.krateo.io
+  resources:
+  - scraperconfigs
+  verbs:
+  - list
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: finops-database-handler-uploader-leader-election
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: 'finops-database-handler-uploader-leader-election'
+subjects:
+- kind: ServiceAccount
+  name: default
+  namespace: 'uploader-test'
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: finops-database-handler-uploader-manager
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: 'finops-database-handler-uploader-manager'
+subjects:
+- kind: ServiceAccount
+  name: default
+  namespace: 'uploader-test'
