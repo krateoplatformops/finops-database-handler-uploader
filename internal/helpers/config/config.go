@@ -37,6 +37,10 @@ func ParseConfig() Configuration {
 	dbHandlerURLOverride := flag.String("dbhandlerurloverride",
 		env.String("FINOPS_DATABASE_HANDLER_URL_OVERRIDE", ""), "finops-database-handler URL override")
 
+	if *dbHandlerURLOverride == "" {
+		dbHandlerURLOverride = nil
+	}
+
 	flag.Parse()
 
 	return Configuration{
