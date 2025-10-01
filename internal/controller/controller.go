@@ -143,8 +143,13 @@ func (e *external) Observe(ctx context.Context, mg resource.Managed) (reconciler
 			},
 		})
 
-		if res.Code != 200 {
+		if res.Code != 200 && res.Code != 404 {
 			return reconciler.ExternalObservation{}, fmt.Errorf("could not get notebook code from finops-database-handler: %d %v - body: %s", res.Code, res.Message, string(bodyData))
+		} else if res.Code == 404 {
+			e.log.Debug("Could not find notebook data, notebook does not exist", "status", res.Code, "name", managed.Name, "operation", "observe")
+			return reconciler.ExternalObservation{
+				ResourceExists: false,
+			}, nil
 		}
 
 		e.log.Debug("received notebook data", "data", string(bodyData), "name", managed.Name, "operation", "observe")
@@ -253,10 +258,14 @@ func (e *external) Update(ctx context.Context, mg resource.Managed) error {
 		Verb:     helpers.GetStringPointer("POST"),
 		Endpoint: &dbHandlerEndpoint,
 		Payload:  &code,
+		ResponseHandler: func(rc io.ReadCloser) error {
+			_, _ = io.ReadAll(rc)
+			return nil
+		},
 	})
 
 	if res.Code != 200 {
-		return fmt.Errorf("could not upload notebook %s: %v", managed.Name, res.Message)
+		return fmt.Errorf("could not upload notebook %s: %d - %v", managed.Name, res.Code, res.Message)
 	}
 
 	return nil
@@ -280,14 +289,21 @@ func (e *external) Delete(ctx context.Context, mg resource.Managed) error {
 	}
 
 	e.log.Debug("deleting notebook", "name", managed.Name, "operation", "delete")
+	var bodyData []byte
 	res := request.Do(ctx, request.RequestOptions{
 		Path:     fmt.Sprintf("/compute/%s", managed.Name),
 		Verb:     helpers.GetStringPointer("DELETE"),
 		Endpoint: &dbHandlerEndpoint,
+		ResponseHandler: func(rc io.ReadCloser) error {
+			bodyData, _ = io.ReadAll(rc)
+			return nil
+		},
 	})
 
+	e.log.Debug("response from finops-database-handler", "response", string(bodyData))
+
 	if res.Code != 200 {
-		return fmt.Errorf("could not upload notebook %s: %v", managed.Name, res.Message)
+		return fmt.Errorf("could not delete notebook %s: %d - %v", managed.Name, res.Code, res.Message)
 	}
 
 	managed.SetConditions(prv1.Deleting())
