@@ -165,6 +165,8 @@ func TestUploader(t *testing.T) {
 				log.Logger.Error().Err(err).Msg("Timed out while waiting for finops-database-handler deployment")
 			}
 
+			time.Sleep(30 * time.Second)
+
 			err = decoder.DecodeEachFile(
 				ctx, os.DirFS(deploymentsPath), "*",
 				decoder.CreateHandler(r),

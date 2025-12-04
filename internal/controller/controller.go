@@ -103,8 +103,10 @@ func (e *external) Observe(ctx context.Context, mg resource.Managed) (reconciler
 
 	e.log.Debug("listing notebooks", "name", managed.Name, "operation", "observe")
 	res := request.Do(ctx, request.RequestOptions{
-		Path:     "/compute/list",
-		Verb:     helpers.GetStringPointer("GET"),
+		RequestInfo: request.RequestInfo{
+			Path: "/compute/list",
+			Verb: helpers.GetStringPointer("GET"),
+		},
 		Endpoint: &dbHandlerEndpoint,
 		ResponseHandler: func(rc io.ReadCloser) error {
 			bodyData, _ = io.ReadAll(rc)
@@ -134,8 +136,10 @@ func (e *external) Observe(ctx context.Context, mg resource.Managed) (reconciler
 		managed.SetConditions(prv1.Available())
 		e.log.Debug("getting notebook code", "name", managed.Name)
 		res = request.Do(ctx, request.RequestOptions{
-			Path:     fmt.Sprintf("/compute/%s/info", managed.Name),
-			Verb:     helpers.GetStringPointer("GET"),
+			RequestInfo: request.RequestInfo{
+				Path: fmt.Sprintf("/compute/%s/info", managed.Name),
+				Verb: helpers.GetStringPointer("GET"),
+			},
 			Endpoint: &dbHandlerEndpoint,
 			ResponseHandler: func(rc io.ReadCloser) error {
 				bodyData, _ = io.ReadAll(rc)
@@ -211,10 +215,12 @@ func (e *external) Create(ctx context.Context, mg resource.Managed) error {
 	var bodyData []byte
 	e.log.Debug("creating notebook", "name", managed.Name, "operation", "create")
 	res := request.Do(ctx, request.RequestOptions{
-		Path:     fmt.Sprintf("/compute/%s/upload", managed.Name),
-		Verb:     helpers.GetStringPointer("POST"),
+		RequestInfo: request.RequestInfo{
+			Path:    fmt.Sprintf("/compute/%s/upload", managed.Name),
+			Verb:    helpers.GetStringPointer("POST"),
+			Payload: &code,
+		},
 		Endpoint: &dbHandlerEndpoint,
-		Payload:  &code,
 		ResponseHandler: func(rc io.ReadCloser) error {
 			bodyData, _ = io.ReadAll(rc)
 			return nil
@@ -254,10 +260,12 @@ func (e *external) Update(ctx context.Context, mg resource.Managed) error {
 
 	e.log.Debug("uploading notebook", "name", managed.Name, "operation", "update")
 	res := request.Do(ctx, request.RequestOptions{
-		Path:     fmt.Sprintf("/compute/%s/upload?overwrite=true", managed.Name),
-		Verb:     helpers.GetStringPointer("POST"),
+		RequestInfo: request.RequestInfo{
+			Path:    fmt.Sprintf("/compute/%s/upload?overwrite=true", managed.Name),
+			Verb:    helpers.GetStringPointer("POST"),
+			Payload: &code,
+		},
 		Endpoint: &dbHandlerEndpoint,
-		Payload:  &code,
 		ResponseHandler: func(rc io.ReadCloser) error {
 			_, _ = io.ReadAll(rc)
 			return nil
@@ -291,8 +299,10 @@ func (e *external) Delete(ctx context.Context, mg resource.Managed) error {
 	e.log.Debug("deleting notebook", "name", managed.Name, "operation", "delete")
 	var bodyData []byte
 	res := request.Do(ctx, request.RequestOptions{
-		Path:     fmt.Sprintf("/compute/%s", managed.Name),
-		Verb:     helpers.GetStringPointer("DELETE"),
+		RequestInfo: request.RequestInfo{
+			Path: fmt.Sprintf("/compute/%s", managed.Name),
+			Verb: helpers.GetStringPointer("DELETE"),
+		},
 		Endpoint: &dbHandlerEndpoint,
 		ResponseHandler: func(rc io.ReadCloser) error {
 			bodyData, _ = io.ReadAll(rc)

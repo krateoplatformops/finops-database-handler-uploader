@@ -25,10 +25,12 @@ func (r *HttpProvider) Resolve(managed *api.Notebook) (string, error) {
 	var bodyData []byte
 
 	options := request.RequestOptions{
-		Path:     managed.Spec.API.Path,
-		Verb:     &managed.Spec.API.Verb,
-		Payload:  &managed.Spec.API.Payload,
-		Headers:  managed.Spec.API.Headers,
+		RequestInfo: request.RequestInfo{
+			Path:    managed.Spec.API.Path,
+			Verb:    &managed.Spec.API.Verb,
+			Payload: &managed.Spec.API.Payload,
+			Headers: managed.Spec.API.Headers,
+		},
 		Endpoint: &endpoint,
 		ResponseHandler: func(rc io.ReadCloser) error {
 			bodyData, _ = io.ReadAll(rc)
