@@ -1,9 +1,9 @@
 module database-handler-uploader
 
-go 1.24.2
+go 1.25.3
 
 require (
-	github.com/krateoplatformops/plumbing v0.6.0
+	github.com/krateoplatformops/plumbing v0.9.4
 	github.com/krateoplatformops/provider-runtime v0.9.1
 	github.com/rs/zerolog v1.34.0
 	k8s.io/apimachinery v0.33.0

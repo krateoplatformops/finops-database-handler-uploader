@@ -77,6 +77,8 @@ github.com/krateoplatformops/finops-data-types v0.0.0-20250314114822-fd3900214fa
 github.com/krateoplatformops/finops-data-types v0.0.0-20250314114822-fd3900214fab/go.mod h1:RjSPdG16QTxD8FPzzhkI23rrshrfizksQbdFuaEo4+Y=
 github.com/krateoplatformops/plumbing v0.6.0 h1:sBIeZv8twYWifr9zeeA1E5R30epX16el8yqdsMzr2Yc=
 github.com/krateoplatformops/plumbing v0.6.0/go.mod h1:RhqIZ7si6p39Oor0/FE3LEqn3gqSt3fhcyKVJ9GhtRw=
+github.com/krateoplatformops/plumbing v0.9.4 h1:VKBKFnmAx9LptJysnkR5SPvW4G6+Dr/SnMTdZvjdpSs=
+github.com/krateoplatformops/plumbing v0.9.4/go.mod h1:WOVJKQF2icCphVb1sEgMSvGhMJbigfHM3X6Meqsy4fM=
 github.com/krateoplatformops/provider-runtime v0.9.1 h1:AzeLCOmycSip4s7xokgWo4YuZVMyhXVE6glrgPYNOOA=
 github.com/krateoplatformops/provider-runtime v0.9.1/go.mod h1:A0OKDAXE9KnX1GyhZH0UpZhpn15xQANoc4KVYLsfZM0=
 github.com/kylelemons/godebug v1.1.0 h1:RPNrshWIDI6G2gRW9EHilWtl7Z6Sb1BR0xunSBf0SNc=

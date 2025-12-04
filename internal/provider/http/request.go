@@ -7,18 +7,18 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
 
 	xcontext "github.com/krateoplatformops/plumbing/context"
 	"github.com/krateoplatformops/plumbing/http/request"
 	"github.com/krateoplatformops/plumbing/http/response"
+	"github.com/krateoplatformops/plumbing/http/util"
 	"github.com/krateoplatformops/plumbing/ptr"
 )
 
 const maxUnstructuredResponseTextBytes = 2048
 
-// This is a copy of: plumbing/http/request/request.go
-// with a line change below
 func Do(ctx context.Context, opts request.RequestOptions) *response.Status {
 	uri := strings.TrimSuffix(opts.Endpoint.ServerURL, "/")
 	if len(opts.Path) > 0 {
@@ -41,25 +41,43 @@ func Do(ctx context.Context, opts request.RequestOptions) *response.Status {
 	if err != nil {
 		return response.New(http.StatusInternalServerError, err)
 	}
-	call.Header.Set(xcontext.LabelKrateoTraceId, xcontext.TraceId(ctx, true))
+	// Additional headers for AWS Signature 4 algorithm
+	if opts.Endpoint.HasAwsAuth() {
+		headers, _, _, _, _, _ := request.ComputeAwsHeaders(opts.Endpoint, &opts.RequestInfo)
+		opts.Headers = append(opts.Headers, headers...)
+		opts.Headers = append(opts.Headers, xcontext.LabelKrateoTraceId+":"+xcontext.TraceId(ctx, true))
+		for i := range opts.Headers {
+			hParts := strings.Split(opts.Headers[i], ":")
+			opts.Headers[i] = strings.ToLower(strings.Trim(hParts[0], " ")) + ":" + strings.Trim(hParts[1], " ")
+		}
+		sort.Strings(opts.Headers)
+	} else {
+		call.Header.Set(xcontext.LabelKrateoTraceId, xcontext.TraceId(ctx, true))
+	}
 
+	// log.Info().Msgf("Header: %s", opts.Headers)
 	if len(opts.Headers) > 0 {
 		for _, el := range opts.Headers {
 			idx := strings.Index(el, ":")
 			if idx <= 0 {
 				continue
 			}
-			call.Header.Set(el[:idx], el[idx+1:])
+			key := el[:idx]
+			val := strings.TrimSpace(el[idx+1:])
+			call.Header.Set(key, val)
 		}
 	}
 
-	cli, err := request.HTTPClientForEndpoint(opts.Endpoint)
+	cli, err := request.HTTPClientForEndpoint(opts.Endpoint, &opts.RequestInfo)
 	if err != nil {
-		return response.New(http.StatusInternalServerError,
-			fmt.Errorf("unable to create HTTP Client for endpoint: %w", err))
+		return response.New(http.StatusInternalServerError, fmt.Errorf("unable to create HTTP Client for endpoint: %w", err))
 	}
 
-	respo, err := cli.Do(call)
+	// Wrap the existing client in a RetryClient
+	retryCli := util.NewRetryClient(cli)
+
+	// Use RetryClient instead of the raw client  cli.Do(call)
+	respo, err := retryCli.Do(call)
 	if err != nil {
 		return response.New(http.StatusInternalServerError, err)
 	}
@@ -71,6 +89,7 @@ func Do(ctx context.Context, opts request.RequestOptions) *response.Status {
 		if err != nil {
 			return response.New(http.StatusInternalServerError, err)
 		}
+		// log.Info().Msgf("Body plumbing: %s", string(dat))
 
 		res := &response.Status{}
 		if err := json.Unmarshal(dat, res); err != nil {
@@ -81,8 +100,7 @@ func Do(ctx context.Context, opts request.RequestOptions) *response.Status {
 		return res
 	}
 
-	// These lines are not needed for this project
-
+	// Service providers REST APIs do not always follow the standard JSON response, hence these lines are commented
 	// if ct := respo.Header.Get("Content-Type"); !strings.Contains(ct, "json") {
 	// 	return response.New(http.StatusNotAcceptable, fmt.Errorf("content type %q is not allowed", ct))
 	// }
